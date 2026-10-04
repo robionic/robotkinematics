@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kinematics Visualizer - Advanced</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">ADVANCED TOOL</p>
+        <h1>Kinematics Visualization Tool</h1>
+      </div>
+      <div class="header-actions">
+        <label class="preset-wrap">PRESET
+          <select id="preset-select">
+            <option value="staubli">Staubli TX40 Classic DH</option>
+            <option value="scara">SCARA 3DOF</option>
+            <option value="custom">Custom</option>
+          </select>
+        </label>
+        <button id="load-preset" class="primary">Load</button>
+        <button id="download-json" class="secondary">Download File</button>
+        <label class="file-picker">
+          Upload File
+          <input id="upload-json" type="file" accept=".json,.txt" />
+        </label>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="panel controls-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">CONTROLS</p>
+            <h2>DH matrix</h2>
+          </div>
+          <button id="add-row" class="secondary">Add a row</button>
+        </div>
+
+        <div id="dh-table" class="dh-table" aria-live="polite"></div>
+      </aside>
+
+      <section class="panel visual-panel">
+        <div class="visual-header">
+          <div>
+            <p class="eyebrow">THREE-DIMENSIONAL VIEW</p>
+            <h2>Robot model</h2>
+          </div>
+          <div class="metrics">
+            <span>Size of 3D canvas: <strong>200mm</strong></span>
+          </div>
+        </div>
+
+        <svg id="robot-svg" viewBox="0 0 520 320" aria-label="Robot kinematic visualization">
+          <g id="robot-drawing"></g>
+        </svg>
+
+        <div class="info-strip">
+          <div><span>Joint count</span><strong id="joint-count">0</strong></div>
+          <div><span>TCP</span><strong id="tcp-output">(0.00, 0.00, 0.00)</strong></div>
+        </div>
+      </section>
+    </main>
+
+    <section class="lower-grid">
+      <div class="panel matrix-panel">
+        <div class="panel-header compact">
+          <div>
+            <p class="eyebrow">MATRIX</p>
+            <h2>Forward kinematics</h2>
+          </div>
+        </div>
+        <div id="forward-kinematics" class="matrix-block"></div>
+      </div>
+
+      <div class="panel matrix-panel">
+        <div class="panel-header compact">
+          <div>
+            <p class="eyebrow">JACOBIAN</p>
+            <h2>Inverse Jacobian</h2>
+          </div>
+        </div>
+        <div id="jacobian-output" class="matrix-block"></div>
+      </div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

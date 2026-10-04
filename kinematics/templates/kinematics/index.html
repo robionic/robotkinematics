@@ -1,0 +1,253 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Build a robot arm and learn to derive its standard Denavit-Hartenberg parameters.">
+    <title>Frame by Frame — Robot Kinematics Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'kinematics/style.css' %}">
+</head>
+<body>
+    <form hidden>{% csrf_token %}</form>
+    <div class="app">
+        <header class="topbar">
+            <a class="brand" href="/" aria-label="Frame by Frame home">
+                <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+                <span>FRAME<span class="brand-light">/</span>BY<span class="brand-light">/</span>FRAME</span>
+            </a>
+            <div class="topbar-right">
+                <span class="course-tag">KINEMATICS LAB <span>01</span></span>
+                <span class="online"><i></i> INTERACTIVE LESSON</span>
+            </div>
+        </header>
+
+        <main>
+            <section class="intro">
+                <div>
+                    <p class="eyebrow"><span class="eyebrow-line"></span> THE ROBOT ARM PLAYGROUND</p>
+                    <h1>Build a robot.<br><span>Find its frames.</span></h1>
+                    <p class="intro-copy">Add joints, shape the arm, then walk through the logic that turns a robot into a DH table.</p>
+                </div>
+                <div class="lesson-chip"><span>01</span><div><strong>STANDARD DH</strong><small>One frame at a time</small></div></div>
+            </section>
+
+            <section class="tool-shell panel" aria-labelledby="tool-shell-title">
+                <div class="tool-header">
+                    <div>
+                        <p class="eyebrow">TOOLS</p>
+                        <h2 id="tool-shell-title">Kinematics Visualization Tool</h2>
+                    </div>
+                    <div class="toolbar">
+                        <label class="preset-picker" for="robot-preset">PRESET
+                            <select id="robot-preset">
+                                <option value="classic">Staubli TX40 Classic DH</option>
+                                <option value="scara">SCARA 3DOF</option>
+                                <option value="custom">Custom</option>
+                            </select>
+                        </label>
+                        <button id="load-preset-button" class="button button-dark" type="button">Load</button>
+                        <button id="download-dh-button" class="button button-outline" type="button">Download File</button>
+                        <label class="upload-button" for="upload-dh-input">Upload File
+                            <input id="upload-dh-input" type="file" accept=".json,.txt,.csv" aria-label="Upload robot definition" />
+                        </label>
+                    </div>
+                </div>
+                <div class="tool-tabs" role="tablist" aria-label="Kinematics views">
+                    <button class="tool-tab is-active" type="button" data-tab="three-view" role="tab" aria-selected="true">Three-dimensional view</button>
+                    <button class="tool-tab" type="button" data-tab="matrix-view" role="tab" aria-selected="false">Matrix</button>
+                    <button class="tool-tab" type="button" data-tab="forward-view" role="tab" aria-selected="false">Forward Kinematics</button>
+                    <button class="tool-tab" type="button" data-tab="jacobian-view" role="tab" aria-selected="false">Jacobian</button>
+                </div>
+                <div class="tool-panels">
+                    <div class="tool-panel is-active" id="three-view-panel" role="tabpanel">
+                        <div class="tool-metrics">
+                            <div><span>Joint count</span><strong id="tool-joint-count">3</strong></div>
+                            <div><span>TCP</span><strong id="tool-tcp">(0.00, 0.00, 0.00)</strong></div>
+                            <div><span>Canvas</span><strong>200mm</strong></div>
+                        </div>
+                        <div class="tool-stage-wrap">
+                            <svg id="tool-svg" viewBox="0 0 520 320" role="img" aria-label="Robot kinematics canvas">
+                                <g id="tool-arm-drawing"></g>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="tool-panel" id="matrix-view-panel" role="tabpanel">
+                        <div class="matrix-shell">
+                            <h3>Denavit–Hartenberg matrix</h3>
+                            <table class="mini-matrix">
+                                <thead>
+                                    <tr><th>Joint</th><th>α</th><th>θ</th><th>θ offset</th><th>a</th><th>d</th><th>d offset</th><th>Type</th></tr>
+                                </thead>
+                                <tbody id="tool-matrix-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="tool-panel" id="forward-view-panel" role="tabpanel">
+                        <div class="math-output">
+                            <h3>Forward kinematics</h3>
+                            <div id="forward-kinematics-output" class="matrix-display"></div>
+                        </div>
+                    </div>
+                    <div class="tool-panel" id="jacobian-view-panel" role="tabpanel">
+                        <div class="math-output">
+                            <h3>Jacobian</h3>
+                            <div id="jacobian-output" class="matrix-display"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="robot-import panel" aria-labelledby="robot-import-title">
+                <div class="section-head">
+                    <div><p class="eyebrow">MODEL LIBRARY</p><h2 id="robot-import-title">Select a robot model</h2></div>
+                    <span class="convention-tag">FANUC · KUKA · ANY MAKER</span>
+                </div>
+                <form id="robot-import-form" class="import-form">
+                    <label for="robot-page-url">ROBOT PRODUCT PAGE</label>
+                    <div class="url-entry">
+                        <input id="robot-page-url" type="url" inputmode="url" autocomplete="url" placeholder="https://manufacturer.com/robot/model" required>
+                        <button id="import-robot-button" class="button button-dark" type="submit">Load model page ↗</button>
+                    </div>
+                    <p class="section-note">Paste a public HTTPS product page. The app looks for its page title and preview image.</p>
+                </form>
+                <p id="import-status" class="import-status" role="status" aria-live="polite"></p>
+                <div id="robot-preview" class="robot-preview" hidden>
+                    <div class="preview-image-wrap">
+                        <img id="robot-product-image" alt="Robot model product preview">
+                        <span class="preview-label">PRODUCT IMAGE</span>
+                    </div>
+                    <div class="preview-details">
+                        <p class="eyebrow">MODEL PREVIEW</p>
+                        <h3 id="robot-model-title"></h3>
+                        <a id="robot-page-link" href="#" target="_blank" rel="noopener noreferrer">Open manufacturer page ↗</a>
+                        <label id="robot-image-picker-wrap" class="image-picker" for="robot-image-picker">PAGE IMAGE
+                            <select id="robot-image-picker"></select>
+                        </label>
+                        <label class="image-picker" for="robot-image-url">OR USE AN IMAGE LINK
+                            <span class="image-url-entry"><input id="robot-image-url" type="url" placeholder="https://.../robot.jpg"><button id="use-image-url" class="button button-outline" type="button">Preview</button></span>
+                        </label>
+                    </div>
+                    <div class="joint-estimate">
+                        <label for="robot-joint-count">HOW MANY JOINTS DO YOU SEE?</label>
+                        <div class="joint-count-entry">
+                            <select id="robot-joint-count" aria-label="Estimated number of joints">
+                                <option value="1">1 joint</option><option value="2">2 joints</option><option value="3">3 joints</option><option value="4">4 joints</option>
+                                <option value="5">5 joints</option><option value="6" selected>6 joints</option><option value="7">7 joints</option><option value="8">8 joints</option>
+                            </select>
+                            <button id="apply-joint-count" class="button button-dark" type="button">Use this robot</button>
+                        </div>
+                        <p>No AI image recognition is enabled. Estimate the count from the preview, then confirm each joint type in the robot builder.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="workspace">
+                <div class="builder panel">
+                    <div class="section-head">
+                        <div><p class="eyebrow">01 / DEFINE</p><h2>Your robot</h2></div>
+                        <button id="add-joint" class="button button-outline" type="button"><span>+</span> Add joint</button>
+                    </div>
+                    <p class="section-note">Set each link's dimensions and joint motion. Angles use degrees; distances use your chosen unit.</p>
+                    <div id="joint-list" class="joint-list" aria-live="polite"></div>
+                    <div class="builder-footer">
+                        <span><span class="legend-dot"></span> Revolute · rotation about z</span>
+                        <span><span class="legend-dot slide"></span> Prismatic · translation along z</span>
+                    </div>
+                </div>
+
+                <div class="visualizer panel">
+                    <div class="section-head">
+                        <div><p class="eyebrow">02 / OBSERVE</p><h2>Robot in motion</h2></div>
+                        <span class="live-tag"><i></i> LIVE MODEL</span>
+                    </div>
+                    <div class="robot-stage">
+                        <div class="axis-key"><span><i class="axis-x"></i>X</span><span><i class="axis-y"></i>Y</span><span><i class="axis-z"></i>Z</span></div>
+                        <svg id="robot-svg" viewBox="0 0 520 320" role="img" aria-label="Live drawing of the robot arm">
+                            <defs>
+                                <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+                                    <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#e9e9e2" stroke-width="1"/>
+                                </pattern>
+                            </defs>
+                            <rect width="520" height="320" fill="url(#grid)"/>
+                            <g id="arm-drawing"></g>
+                        </svg>
+                        <div id="end-effector" class="effector-readout">TCP <span>(0.00, 0.00, 0.00)</span></div>
+                    </div>
+                    <div class="visual-note"><span>↗</span> The sketch shows the arm in the XY plane. Twist angles are included in the 3D transform math.</div>
+                </div>
+            </section>
+
+            <section class="lesson-grid">
+                <div class="lesson panel">
+                    <div class="section-head">
+                        <div><p class="eyebrow">03 / DERIVE</p><h2>Follow the frame</h2></div>
+                        <div class="step-count"><span id="step-number">01</span><span class="step-divider">/</span><span>06</span></div>
+                    </div>
+                    <div class="progress-track"><span id="progress-fill"></span></div>
+                    <div class="lesson-content">
+                        <div class="lesson-icon" id="lesson-icon">z</div>
+                        <div>
+                            <p id="lesson-kicker" class="eyebrow">STEP 01 — JOINT AXIS</p>
+                            <h3 id="lesson-title">Start with the joint</h3>
+                            <p id="lesson-description"></p>
+                            <div id="lesson-equation" class="equation"></div>
+                        </div>
+                    </div>
+                    <div class="lesson-controls">
+                        <label class="joint-picker">WORKING ON <select id="lesson-joint"></select></label>
+                        <div class="step-buttons"><button id="previous-step" class="button button-quiet" type="button">← Back</button><button id="next-step" class="button button-dark" type="button">Next step →</button></div>
+                    </div>
+                </div>
+
+                <div class="practice panel">
+                    <div class="section-head">
+                        <div><p class="eyebrow">QUICK CHECK</p><h2>Spot the variable</h2></div>
+                        <span class="quiz-mark">?</span>
+                    </div>
+                    <p class="section-note">In the selected joint's DH row, which parameter changes when the actuator moves?</p>
+                    <div id="quiz-choices" class="quiz-choices">
+                        <button type="button" data-answer="theta"><span>θ</span> Theta — rotation</button>
+                        <button type="button" data-answer="d"><span>d</span> Offset — translation</button>
+                    </div>
+                    <p id="quiz-feedback" class="quiz-feedback" aria-live="polite">Choose an answer to check your understanding.</p>
+                </div>
+            </section>
+
+            <section class="resource-panel panel" aria-labelledby="resources-title">
+                <div class="section-head">
+                    <div><p class="eyebrow">04 / VISUALISE</p><h2 id="resources-title">Useful links for DH steps</h2></div>
+                    <span class="convention-tag">FRAME MAPS</span>
+                </div>
+                <p class="section-note">Use these references to see how frames, axes, and offsets are assigned before checking your own table.</p>
+                <ul class="resource-list">
+                    <li><a href="https://robotacademy.net.au/lesson/denavit-hartenberg-parameters/" target="_blank" rel="noreferrer">Robot Academy — Denavit–Hartenberg parameters</a><span>Clear diagrams and a friendly walk-through of assigning the joint axes and parameters.</span></li>
+                    <li><a href="https://www.mathworks.com/help/robotics/ug/denavit-hartenberg-parameters.html" target="_blank" rel="noreferrer">MathWorks — Denavit-Hartenberg parameters</a><span>Practical MATLAB examples with a concise explanation of the standard convention.</span></li>
+                    <li><a href="https://en.wikipedia.org/wiki/Denavit%E2%80%93Hartenberg_parameters" target="_blank" rel="noreferrer">Wikipedia — Denavit–Hartenberg parameters</a><span>Quick reference for the standard DH equation and parameter definitions.</span></li>
+                    <li><a href="https://motion.cs.illinois.edu/RoboticSystems/DenavitHartenberg.html" target="_blank" rel="noreferrer">UIUC Robotics — DH parameter tutorial</a><span>Step-by-step derivation showing how the frames stack from joint to joint.</span></li>
+                </ul>
+            </section>
+
+            <section class="table-panel panel">
+                <div class="section-head">
+                    <div><p class="eyebrow">05 / CONNECT THE DOTS</p><h2>Your DH parameter table</h2></div>
+                    <span class="convention-tag">STANDARD CONVENTION</span>
+                </div>
+                <p class="section-note">Each row maps frame <i>i−1</i> to frame <i>i</i> using <span class="inline-math">Rz(θ) · Tz(d) · Tx(a) · Rx(α)</span>.</p>
+                <div class="table-scroll">
+                    <table>
+                        <thead><tr><th>JOINT</th><th>TYPE</th><th>a <small>link length</small></th><th>α <small>link twist</small></th><th>d <small>offset</small></th><th>θ <small>joint angle</small></th><th>VARIABLE</th></tr></thead>
+                        <tbody id="dh-rows"></tbody>
+                    </table>
+                </div>
+                <div class="matrix-footer"><span>END-EFFECTOR POSITION</span><strong id="position-output">(0.00, 0.00, 0.00)</strong><span class="unit-note">same units as link lengths</span></div>
+            </section>
+        </main>
+        <footer><span>FRAME/BY/FRAME</span><span>Small steps. Clear frames. Better robots.</span><a href="https://en.wikipedia.org/wiki/Denavit%E2%80%93Hartenberg_parameters" target="_blank" rel="noreferrer">DH notation reference ↗</a></footer>
+    </div>
+    <script src="{% static 'kinematics/app.js' %}"></script>
+</body>
+</html>
