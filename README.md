@@ -4,6 +4,10 @@
 
 Robot Kinematics Lab is a Django-based educational web app for learning how serial robot arms are described and analyzed using standard Denavit–Hartenberg (DH) parameters. It helps students and engineers translate robot geometry into workable kinematic models and visualize end-effector motion in real time.
 
+## License and third-party materials
+
+The MIT license applies to original code and materials created for this repository. Third-party assets, data, dependencies, and model weights retain their own licenses and notices; the repository's MIT license does not relicense them.
+
 ## 🚀 Key Features
 
 ### Robot Modeling
